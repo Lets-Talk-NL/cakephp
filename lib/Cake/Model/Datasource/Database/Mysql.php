@@ -115,6 +115,8 @@ class Mysql extends DboSource {
 		'primary_key' => array('name' => 'NOT NULL AUTO_INCREMENT'),
 		'string' => array('name' => 'varchar', 'limit' => '255'),
 		'text' => array('name' => 'text'),
+		'mediumtext' => array('name' => 'mediumtext'),
+		'longtext' => array('name' => 'longtext'),
 		'biginteger' => array('name' => 'bigint', 'limit' => '20'),
 		'integer' => array('name' => 'int', 'limit' => '11', 'formatter' => 'intval'),
 		'float' => array('name' => 'float', 'formatter' => 'floatval'),
@@ -776,6 +778,12 @@ class Mysql extends DboSource {
 		}
 		if (strpos($col, 'text') !== false) {
 			return 'text';
+		}
+		if (strpos($col, 'mediumtext') !== false) {
+			return 'mediumtext';
+		}
+		if (strpos($col, 'longtext') !== false) {
+			return 'longtext';
 		}
 		if (strpos($col, 'blob') !== false || $col === 'binary') {
 			return 'binary';
