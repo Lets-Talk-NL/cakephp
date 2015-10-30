@@ -553,6 +553,10 @@ class MysqlTest extends CakeTestCase {
 		$result = $this->Dbo->column('decimal(14,7) unsigned');
 		$expected = 'decimal';
 		$this->assertEquals($expected, $result);
+
+		$result = $this->Dbo->column("set('a','b','c')");
+		$expected = "set('a','b','c')";
+		$this->assertEquals($expected, $result);
 	}
 
 /**
@@ -920,6 +924,44 @@ SQL;
 		));
 		$result = $this->Dbo->createSchema($schema);
 		$this->assertContains('`limit_date` timestamp NOT NULL,', $result);
+	}
+
+/**
+ * Test that describe() ignores `default current_timestamp` in datetime columns.
+ * This is for MySQL >= 5.6.
+ *
+ * @return void
+ */
+	public function testDescribeHandleCurrentTimestampDatetime() {
+		$mysqlVersion = $this->Dbo->query('SELECT VERSION() as version', array('log' => false));
+		$this->skipIf(version_compare($mysqlVersion[0][0]['version'], '5.6.0', '<'));
+
+		$name = $this->Dbo->fullTableName('timestamp_default_values');
+		$sql = <<<SQL
+CREATE TABLE $name (
+	id INT(11) NOT NULL AUTO_INCREMENT,
+	phone VARCHAR(10),
+	limit_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY(id)
+);
+SQL;
+		$this->Dbo->execute($sql);
+		$model = new Model(array(
+			'table' => 'timestamp_default_values',
+			'ds' => 'test',
+			'alias' => 'TimestampDefaultValue'
+		));
+		$result = $this->Dbo->describe($model);
+		$this->Dbo->execute('DROP TABLE ' . $name);
+
+		$this->assertNull($result['limit_date']['default']);
+
+		$schema = new CakeSchema(array(
+			'connection' => 'test',
+			'testdescribes' => $result
+		));
+		$result = $this->Dbo->createSchema($schema);
+		$this->assertContains('`limit_date` datetime NOT NULL,', $result);
 	}
 
 /**
@@ -4069,6 +4111,36 @@ SQL;
 		$this->assertNotEmpty($model->read(null, 1));
 
 		$this->Dbo->useNestedTransactions = $nested;
+	}
+
+/**
+ * Test that value() quotes set values even when numeric.
+ *
+ * @return void
+ */
+	public function testSetValue() {
+		$column = "set('a','b','c')";
+		$result = $this->Dbo->value('1', $column);
+		$this->assertEquals("'1'", $result);
+
+		$result = $this->Dbo->value(1, $column);
+		$this->assertEquals("'1'", $result);
+
+		$result = $this->Dbo->value('a', $column);
+		$this->assertEquals("'a'", $result);
+	}
+
+/**
+ * Test isConnected
+ *
+ * @return void
+ */
+	public function testIsConnected() {
+		$this->Dbo->disconnect();
+		$this->assertFalse($this->Dbo->isConnected(), 'Not connected now.');
+
+		$this->Dbo->connect();
+		$this->assertTrue($this->Dbo->isConnected(), 'Should be connected.');
 	}
 
 }
